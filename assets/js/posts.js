@@ -133,29 +133,43 @@ const data = {
 
 }
 
-
 const commentsBox = document.querySelector('.comments');
 const addCommentBox = document.querySelector('.addCommentBox');
+
+let replyingTo = null; 
+
+document.querySelectorAll('.replyBtn').forEach((btn, index) => {
+  btn.addEventListener('click', () => {
+    replyingTo = data.comments[index] || data.comments.find(c => c.replies.some(r => r.id === index + 1));
+    const commentTextarea = document.querySelector('.newComment');
+    commentTextarea.placeholder = `Replying to @${replyingTo.user.username}`;
+    commentTextarea.focus();
+  });
+});
 
 function loadComments() {
   commentsBox.innerHTML = '';
   commentsBox.innerHTML += data.comments.map((x) => 
   `
   <div class="commentBox">
-    <div class="score">
-      <p>${x.score}</p>
-    </div>
     <div class="comment">
       <div class="commenterSection">
         <div class="commenter">
           <img src="${x.user.image.svg}" alt="">
+          <h3>${x.user.username}</h3>
           <p>${x.createdAt}</p>
         </div>
-        <button class="replyBtn">
-          Reply
-        </button>
       </div>
-      <p>${x.content}</p>
+      <p class="content">${x.content}</p>
+    </div>
+    <div class="commentBoxFooter">
+      <div class="score">
+        <p><span class="plusIcon">+</span>${x.score}<span class="minusIcon">-</span></p>
+      </div>
+      <button class="replyBtn" data-id="${x.id}">
+        <img src="assets/images/avatars/replyBtnIcon.svg" alt="">
+        Reply
+      </button>
     </div>
   </div>
   ${x.replies.length > 0 
@@ -163,20 +177,24 @@ function loadComments() {
         ${x.replies.map(y => 
           `
           <div class="replyBox">
-            <div class="score">
-              <p>${y.score}</p>
-            </div>
             <div class="comment">
               <div class="commenterSection">
                 <div class="commenter">
                   <img src="${y.user.image.svg}" alt="${y.user.username}">
+                  <h3>${y.user.username}</h3>
                   <p>${y.createdAt}</p>
                 </div>
-                <button class="replyBtn">
+                <p class="replyContent"><span class="replyingTo">@${y.replyingTo}</span> ${y.content}</p>
+                <div class="commentBoxFooter">
+                  <div class="score">
+                    <p><span class="plusIcon">+</span>${y.score}<span class="minusIcon">-</span></p>
+                  </div>
+                <button class="replyBtn" data-id="${y.id}">
+                  <img src="assets/images/avatars/replyBtnIcon.svg" alt="">
                   Reply
                 </button>
               </div>
-              <p><span class="replyingTo">@${y.replyingTo}</span> ${y.content}</p>
+              </div>
             </div>
           </div>
           `
@@ -190,13 +208,30 @@ function loadComments() {
   commentsBox.innerHTML += `
     <div class="addComment">
       <textarea class="newComment" placeholder="Add a comment..."></textarea>
-      <button class="sendComment">SEND</button>
+      <div class="addCommentFooter">
+        <img src="${data.currentUser.image.svg}" alt="">
+        <button class="sendComment">SEND</button>
+      </div>
     </div>
   `;
 
+  // Olay dinleyicileri ekle
+  addReplyButtonListeners();
   document.querySelector('.sendComment').addEventListener('click', addComment);
-
 }
+
+function addReplyButtonListeners() {
+  document.querySelectorAll('.replyBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const commentId = parseInt(btn.dataset.id, 10);
+      replyingTo = findCommentById(commentId);
+      const commentTextarea = document.querySelector('.newComment');
+      commentTextarea.placeholder = `Replying to @${replyingTo.user.username}`;
+      commentTextarea.focus();
+    });
+  });
+}
+
 
 function addComment() {
   const newCommentContent = document.querySelector('.newComment').value.trim();
@@ -206,17 +241,33 @@ function addComment() {
     return;
   }
 
-  data.comments.push({
-    id: data.comments.length + 1,
-    content: newCommentContent,
-    createdAt: 'Just now',
-    score: 0,
-    user: data.currentUser,
-    replies: []
-  });
+  if (replyingTo) {
+    // Cevap ekleme
+    replyingTo.replies.push({
+      id: replyingTo.replies.length + 1,
+      content: newCommentContent,
+      createdAt: 'Just now',
+      score: 0,
+      replyingTo: replyingTo.user.username,
+      user: data.currentUser
+    });
+  } else {
+    // Ana yorum ekleme
+    data.comments.push({
+      id: data.comments.length + 1,
+      content: newCommentContent,
+      createdAt: 'Just now',
+      score: 0,
+      user: data.currentUser,
+      replies: []
+    });
+  }
 
+  replyingTo = null; // Replying modunu sıfırla
+  document.querySelector('.newComment').value = '';
   loadComments();
 }
+
 
 loadComments();
 
